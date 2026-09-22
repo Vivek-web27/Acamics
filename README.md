@@ -51,7 +51,7 @@ add/cancel an event, so it's live, not static.
 
 ```bash
 cd backend
-python3 server.py
+python server.py
 ```
 
 Then open **http://localhost:8000** in a browser. No install step,
