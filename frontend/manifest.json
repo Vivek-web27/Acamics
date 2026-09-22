@@ -1,0 +1,18 @@
+{
+  "name": "Acamics — Academic Calendar & Schedule",
+  "short_name": "Acamics",
+  "description": "Acamics academic calendar, events and schedule.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0c0e",
+  "theme_color": "#0f1117",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f1117'/><path d='M50 20 L80 35 L50 50 L20 35 Z' fill='%2338bdf8'/><path d='M30 45 L30 65 Q50 80 70 65 L70 45' fill='none' stroke='%2338bdf8' stroke-width='6'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
