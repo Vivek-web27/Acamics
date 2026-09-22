@@ -400,7 +400,7 @@ function openEventDetails(ev) {
     personalActions.style.display = "none";
   }
 
-  document.getElementById("reminderToast").style.display = "none";
+  document.getElementById("reminderToast")?.style.setProperty("display", "none");
   modal.classList.add("active");
 }
 
