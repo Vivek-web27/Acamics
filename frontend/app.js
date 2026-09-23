@@ -1,3 +1,12 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = "https://axceorzwzfuyuaeoswgv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hZPUC-ejVolPLx8_O7YktA_G4BTiejk";
+
+const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
 /**
  * ACAMICS / CampusSync — Frontend Event Controller
  * Plain JavaScript, clean linear code, and no frameworks.
@@ -206,9 +215,16 @@ function savePersonalEvents(eventsArray) {
 // ==========================================
 async function initApp() {
   try {
-    // 1. Fetch the bundled official calendar for static hosting
-    const res = await fetch("data/events.json");
-    const officialEvents = await res.json();
+   // 1. Fetch official calendar from Supabase
+const { data: officialEvents, error: eventsError } = await supabase
+    .from("events")
+    .select("*")
+    .order("start_date", { ascending: true })
+    .order("id", { ascending: true });
+
+if (eventsError) {
+    throw eventsError;
+} 
 
     const officialTagged = officialEvents.map(e => ({
       ...e,
