@@ -11,7 +11,7 @@ const STATIC_ASSETS = [
   "./style.css",
   "./app.js",
   "./manifest.json",
-  "./data/events.json",
+ 
   "./posters/academic.png",
   "./posters/exams.png",
   "./posters/breaks.png",
