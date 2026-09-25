@@ -1,0 +1,4 @@
+project_id = "axceorzwzfuyuaeoswgv"
+
+[functions.staff-event-action]
+verify_jwt = true
