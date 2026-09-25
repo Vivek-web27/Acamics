@@ -4,84 +4,115 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0f1117" />
+  <meta name="theme-color" content="#09090c" />
   <title>Acamics — Academic Calendar & Schedule</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" />
 </head>
 <body>
   <!-- Header Bar -->
   <header class="topbar">
-    <div class="brand">
-      <i class="fa-solid fa-graduation-cap"></i>
-      <span>ACA<strong>MICS</strong></span>
+    <div class="topbar-inner">
+      <a class="brand" href="#top" aria-label="Acamics home">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span>aca<strong>mics</strong></span>
+      </a>
+
+      <!-- Live Search -->
+      <label class="search-box" for="searchInput">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.3 4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search your calendar" aria-label="Search events" />
+      </label>
+
+      <!-- Existing app actions; account flow will get its own page later. -->
+      <div class="topbar-actions">
+        <button class="btn btn-primary" id="openAddEventBtn"><span class="add-icon" aria-hidden="true">+</span><span>Add event</span></button>
+        <button class="icon-btn" id="shareAppBtn" title="Share Acamics" aria-label="Share Acamics">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsToggleBtn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.6"/><path d="M19.2 13.8a7.7 7.7 0 0 0 0-3.6l1.4-1.1-1.7-3-1.7.7a7.7 7.7 0 0 0-3.1-1.8L13.8 3h-3.6l-.3 2a7.7 7.7 0 0 0-3.1 1.8l-1.7-.7-1.7 3 1.4 1.1a7.7 7.7 0 0 0 0 3.6l-1.4 1.1 1.7 3 1.7-.7a7.7 7.7 0 0 0 3.1 1.8l.3 2h3.6l.3-2a7.7 7.7 0 0 0 3.1-1.8l1.7.7 1.7-3-1.4-1.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn account-btn" id="authBtn" title="Account" aria-label="Account">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.8-3.3 3.2-5 7-5s6.2 1.7 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
-
-    <!-- Live Search -->
-    <div class="search-box">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="searchInput" placeholder="Search exams, competitions, reviews, venues..." aria-label="Search events" />
-    </div>
-
-    <!-- Actions -->
-    <div class="topbar-actions">
-  <button class="btn btn-primary" id="openAddEventBtn">+ Add Event</button>
-
-  <button class="icon-btn" id="shareAppBtn" title="Share Acamics">
-    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-  </button>
-
-  <button class="icon-btn" id="settingsToggleBtn" title="Settings">
-    <i class="fa-solid fa-gear"></i>
-  </button>
-
-  <button class="icon-btn" id="authBtn" title="Account">
-    <i class="fa-solid fa-user"></i>
-  </button>
-</div>
   </header>
 
   <!-- Main Container -->
   <main class="main-container">
+    <section class="welcome-hero" id="top" aria-labelledby="welcomeTitle">
+      <div class="welcome-copy">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> THE ACADEMIC CALENDAR, REIMAGINED</p>
+        <h1 id="welcomeTitle">Make room for<br /><span>what’s next.</span></h1>
+        <p class="welcome-description">A calmer way to keep track of exams, reviews, campus events, and everything in between.</p>
+      </div>
+      <div class="welcome-note" aria-hidden="true">
+        <div class="welcome-note-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 3.5v3M16.5 3.5v3M4 9h16M8 14l2.2 2.1L16 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p class="welcome-note-kicker">YOUR SEMESTER, IN SYNC</p>
+        <p class="welcome-note-copy">See the big picture.<br />Take it one day at a time.</p>
+        <span class="welcome-note-orbit orbit-one"></span>
+        <span class="welcome-note-orbit orbit-two"></span>
+      </div>
+    </section>
+
     <!-- Next Event Banner -->
     <section class="next-banner" id="nextEventBanner" style="display: none;">
-      <div>
+      <div class="next-banner-copy">
         <span class="banner-badge">NEXT UPCOMING MILESTONE</span>
         <h3 id="bannerTitle">Review-II</h3>
         <p id="bannerMeta">Date • Location</p>
       </div>
-      <button class="btn btn-outline" id="bannerActionBtn">View Details →</button>
+      <button class="btn btn-outline" id="bannerActionBtn">View details <span class="arrow-icon" aria-hidden="true">→</span></button>
     </section>
 
-    <!-- Source Filter Toolbar (All, Official, My Events) -->
-    <div class="filter-toolbar">
-      <button class="filter-pill source-pill active" data-source="ALL">All Events</button>
-      <button class="filter-pill source-pill" data-source="OFFICIAL">🏛️ Official Academic</button>
-      <button class="filter-pill source-pill" data-source="PERSONAL">👤 My Events</button>
-    </div>
+    <section class="calendar-section" aria-labelledby="calendarTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow section-eyebrow">YOUR CAMPUS, IN ONE VIEW</p>
+          <h2 id="calendarTitle">The calendar</h2>
+        </div>
+        <p class="section-hint">Find the dates that matter to you.</p>
+      </div>
 
-    <!-- Category Filter Pills: permanent Acamics taxonomy -->
-    <div class="filter-toolbar category-toolbar">
-      <button class="filter-pill cat-pill active" data-category="ALL">All</button>
-      <button class="filter-pill cat-pill" data-category="Academic">Academic</button>
-      <button class="filter-pill cat-pill" data-category="Exams">Exams</button>
-      <button class="filter-pill cat-pill" data-category="Reviews & Submissions">Reviews & Submissions</button>
-      <button class="filter-pill cat-pill" data-category="Fests & Cultural">Fests & Cultural</button>
-      <button class="filter-pill cat-pill" data-category="Breaks">Breaks</button>
-      <button class="filter-pill cat-pill" data-category="Technical">Technical</button>
-    </div>
+      <div class="filter-panel">
+        <div class="filter-row source-row">
+          <span class="filter-label">Show</span>
+          <div class="filter-toolbar source-toolbar" aria-label="Event source filters">
+            <button class="filter-pill source-pill active" data-source="ALL">Everything</button>
+            <button class="filter-pill source-pill" data-source="OFFICIAL">Official events</button>
+            <button class="filter-pill source-pill" data-source="PERSONAL">My events</button>
+          </div>
+        </div>
 
-    <!-- Status Filter Pills -->
-    <div class="filter-toolbar status-toolbar">
-      <button class="filter-pill stat-pill active" data-status="ALL">All Status</button>
-      <button class="filter-pill stat-pill" data-status="Upcoming">Upcoming</button>
-      <button class="filter-pill stat-pill" data-status="Ongoing">Ongoing</button>
-      <button class="filter-pill stat-pill" data-status="Completed">Completed</button>
-  <button class="filter-pill stat-pill" data-status="Postponed">Postponed</button>
-    </div>
+        <div class="filter-row category-row">
+          <span class="filter-label">Category</span>
+          <div class="filter-toolbar category-toolbar" aria-label="Event category filters">
+            <button class="filter-pill cat-pill active" data-category="ALL">All</button>
+            <button class="filter-pill cat-pill" data-category="Academic">Academic</button>
+            <button class="filter-pill cat-pill" data-category="Exams">Exams</button>
+            <button class="filter-pill cat-pill" data-category="Reviews & Submissions">Reviews &amp; submissions</button>
+            <button class="filter-pill cat-pill" data-category="Fests & Cultural">Fests &amp; culture</button>
+            <button class="filter-pill cat-pill" data-category="Breaks">Breaks</button>
+            <button class="filter-pill cat-pill" data-category="Technical">Technical</button>
+          </div>
+        </div>
 
-    <!-- Event Cards Grid -->
-    <div class="grid-container" id="eventsGrid"></div>
+        <div class="filter-row status-row">
+          <span class="filter-label">Status</span>
+          <div class="filter-toolbar status-toolbar" aria-label="Event status filters">
+            <button class="filter-pill stat-pill active" data-status="ALL">Any status</button>
+            <button class="filter-pill stat-pill" data-status="Upcoming">Upcoming</button>
+            <button class="filter-pill stat-pill" data-status="Ongoing">Ongoing</button>
+            <button class="filter-pill stat-pill" data-status="Completed">Completed</button>
+            <button class="filter-pill stat-pill" data-status="Postponed">Postponed</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Cards Grid -->
+      <div class="grid-container" id="eventsGrid"></div>
+    </section>
   </main>
 
   <!-- EVENT DETAILS MODAL -->

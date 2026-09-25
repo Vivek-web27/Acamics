@@ -23,15 +23,13 @@ function updateAuthButton() {
   const button = document.getElementById("authBtn");
   if (!button) return;
 
-  const icon = button.querySelector("i");
-
   if (currentUser) {
     button.title = `Signed in as ${currentUser.email || "User"}`;
-    if (icon) icon.className = "fa-solid fa-user-check";
+    button.dataset.signedIn = "true";
     button.setAttribute("aria-label", "Account");
   } else {
     button.title = "Sign in";
-    if (icon) icon.className = "fa-solid fa-user";
+    button.dataset.signedIn = "false";
     button.setAttribute("aria-label", "Sign in");
   }
 }
