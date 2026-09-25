@@ -1907,6 +1907,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .close-x { border-radius: 8px; color: #a69daa; }
 .form-body input, .form-body select, .form-body textarea { border-color: rgba(255, 255, 255, 0.12); border-radius: 9px; background: #100f14; }
 
+/* Keep event form controls readable on mobile browsers that use light native controls. */
+.form-body { display: flex; flex-direction: column; gap: 8px; }
+.form-body label { display: block; margin: 4px 0 0; color: var(--text-secondary); }
+.form-body input,
+.form-body select,
+.form-body textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
+  color-scheme: dark;
+  font-size: 1rem;
+}
+.form-body textarea { min-height: 88px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-row > div { min-width: 0; }
+.modal-card { overflow-y: auto; overscroll-behavior: contain; }
+
 @media (max-width: 1050px) {
   .topbar { padding: 0 22px; }
   .topbar-inner { grid-template-columns: 175px minmax(190px, 1fr) auto; gap: 22px; }
@@ -1916,6 +1937,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 720px) {
+  .modal-backdrop { align-items: flex-start; padding: 10px; overflow-y: auto; }
+  .modal-card { max-height: calc(100dvh - 20px); }
+  .modal-body { padding: 16px; }
+  .modal-header, .modal-footer { padding: 14px 16px; }
   .topbar { padding: 0 17px; }
   .topbar-inner { min-height: 68px; grid-template-columns: 1fr auto; gap: 11px 14px; padding: 11px 0; }
   .brand { font-size: 1.05rem; }
