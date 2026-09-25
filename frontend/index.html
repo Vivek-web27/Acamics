@@ -1,282 +1,79 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#09090c" />
-  <title>Acamics — Academic Calendar & Schedule</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="Sign in to Acamics to keep your personal academic events in sync." />
+  <title>Sign in — Acamics</title>
+  <link rel="stylesheet" href="auth.css" />
 </head>
-<body>
-  <!-- Header Bar -->
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="#top" aria-label="Acamics home">
-        <span class="brand-mark" aria-hidden="true">A</span>
+<body class="auth-page">
+  <div class="auth-glow auth-glow-left" aria-hidden="true"></div>
+  <div class="auth-glow auth-glow-right" aria-hidden="true"></div>
+
+  <div class="auth-shell">
+    <header class="auth-topbar">
+      <a class="auth-brand" href="index.html" aria-label="Acamics home">
+        <span class="auth-brand-mark" aria-hidden="true">A</span>
         <span>aca<strong>mics</strong></span>
       </a>
+      <span class="back-to-calendar">ACADEMIC CALENDAR</span>
+    </header>
 
-      <!-- Live Search -->
-      <label class="search-box" for="searchInput">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.3 4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <input type="text" id="searchInput" placeholder="Search your calendar" aria-label="Search events" />
-      </label>
+    <main class="auth-main">
+      <div class="auth-content">
+        <section class="study-quote" aria-labelledby="quoteText">
+          <p class="auth-eyebrow"><span></span> A THOUGHT TO CARRY WITH YOU</p>
+          <blockquote id="quoteText">“Small steps, repeated each day, can take you further than you imagine.”</blockquote>
+        </section>
 
-      <!-- Existing app actions; account flow will get its own page later. -->
-      <div class="topbar-actions">
-        <button class="btn btn-primary" id="openAddEventBtn"><span class="add-icon" aria-hidden="true">+</span><span>Add event</span></button>
-        <button class="icon-btn" id="shareAppBtn" title="Share Acamics" aria-label="Share Acamics">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        </button>
-        <button class="icon-btn" id="settingsToggleBtn" title="Settings" aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.6"/><path d="M19.2 13.8a7.7 7.7 0 0 0 0-3.6l1.4-1.1-1.7-3-1.7.7a7.7 7.7 0 0 0-3.1-1.8L13.8 3h-3.6l-.3 2a7.7 7.7 0 0 0-3.1 1.8l-1.7-.7-1.7 3 1.4 1.1a7.7 7.7 0 0 0 0 3.6l-1.4 1.1 1.7 3 1.7-.7a7.7 7.7 0 0 0 3.1 1.8l.3 2h3.6l.3-2a7.7 7.7 0 0 0 3.1-1.8l1.7.7 1.7-3-1.4-1.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-        </button>
-        <button class="icon-btn account-btn" id="authBtn" title="Account" aria-label="Account">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.8-3.3 3.2-5 7-5s6.2 1.7 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Container -->
-  <main class="main-container">
-    <section class="welcome-hero" id="top" aria-labelledby="welcomeTitle">
-      <div class="welcome-copy">
-        <p class="eyebrow"><span class="eyebrow-dot"></span> THE ACADEMIC CALENDAR, REIMAGINED</p>
-        <h1 id="welcomeTitle">Make room for<br /><span>what’s next.</span></h1>
-        <p class="welcome-description">A calmer way to keep track of exams, reviews, campus events, and everything in between.</p>
-      </div>
-      <div class="welcome-note" aria-hidden="true">
-        <div class="welcome-note-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 3.5v3M16.5 3.5v3M4 9h16M8 14l2.2 2.1L16 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <p class="welcome-note-kicker">YOUR SEMESTER, IN SYNC</p>
-        <p class="welcome-note-copy">See the big picture.<br />Take it one day at a time.</p>
-        <span class="welcome-note-orbit orbit-one"></span>
-        <span class="welcome-note-orbit orbit-two"></span>
-      </div>
-    </section>
-
-    <!-- Next Event Banner -->
-    <section class="next-banner" id="nextEventBanner" style="display: none;">
-      <div class="next-banner-copy">
-        <span class="banner-badge">NEXT UPCOMING MILESTONE</span>
-        <h3 id="bannerTitle">Review-II</h3>
-        <p id="bannerMeta">Date • Location</p>
-      </div>
-      <button class="btn btn-outline" id="bannerActionBtn">View details <span class="arrow-icon" aria-hidden="true">→</span></button>
-    </section>
-
-    <section class="calendar-section" aria-labelledby="calendarTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow section-eyebrow">YOUR CAMPUS, IN ONE VIEW</p>
-          <h2 id="calendarTitle">The calendar</h2>
-        </div>
-        <p class="section-hint">Find the dates that matter to you.</p>
-      </div>
-
-      <div class="filter-panel">
-        <div class="filter-row source-row">
-          <span class="filter-label">Show</span>
-          <div class="filter-toolbar source-toolbar" aria-label="Event source filters">
-            <button class="filter-pill source-pill active" data-source="ALL">Everything</button>
-            <button class="filter-pill source-pill" data-source="OFFICIAL">Official events</button>
-            <button class="filter-pill source-pill" data-source="PERSONAL">My events</button>
+        <section class="auth-card" aria-labelledby="authHeading">
+          <div class="auth-card-heading">
+            <p class="card-kicker">YOUR CAMPUS, IN SYNC</p>
+            <h1 id="authHeading">Welcome back</h1>
+            <p id="authSubheading">Sign in to keep your personal events in sync.</p>
           </div>
-        </div>
 
-        <div class="filter-row category-row">
-          <span class="filter-label">Category</span>
-          <div class="filter-toolbar category-toolbar" aria-label="Event category filters">
-            <button class="filter-pill cat-pill active" data-category="ALL">All</button>
-            <button class="filter-pill cat-pill" data-category="Academic">Academic</button>
-            <button class="filter-pill cat-pill" data-category="Exams">Exams</button>
-            <button class="filter-pill cat-pill" data-category="Reviews & Submissions">Reviews &amp; submissions</button>
-            <button class="filter-pill cat-pill" data-category="Fests & Cultural">Fests &amp; culture</button>
-            <button class="filter-pill cat-pill" data-category="Breaks">Breaks</button>
-            <button class="filter-pill cat-pill" data-category="Technical">Technical</button>
+          <div class="auth-tabs" role="group" aria-label="Choose sign in or sign up">
+            <button type="button" class="auth-tab active" data-auth-mode="signin" aria-pressed="true">Sign in</button>
+            <button type="button" class="auth-tab" data-auth-mode="signup" aria-pressed="false">Create account</button>
           </div>
-        </div>
 
-        <div class="filter-row status-row">
-          <span class="filter-label">Status</span>
-          <div class="filter-toolbar status-toolbar" aria-label="Event status filters">
-            <button class="filter-pill stat-pill active" data-status="ALL">Any status</button>
-            <button class="filter-pill stat-pill" data-status="Upcoming">Upcoming</button>
-            <button class="filter-pill stat-pill" data-status="Ongoing">Ongoing</button>
-            <button class="filter-pill stat-pill" data-status="Completed">Completed</button>
-            <button class="filter-pill stat-pill" data-status="Postponed">Postponed</button>
+          <form id="authForm" novalidate>
+            <label for="authEmail">Email address</label>
+            <input id="authEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+
+            <label for="authPassword">Password</label>
+            <div class="password-field">
+              <input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="6" required />
+              <button class="password-toggle" type="button" id="togglePassword" aria-label="Show password">Show</button>
+            </div>
+            <p class="password-hint" id="passwordHint" hidden>Use at least 6 characters.</p>
+
+            <p class="auth-message" id="authMessage" role="status" aria-live="polite" hidden></p>
+            <button class="auth-submit" id="authSubmit" type="submit">Sign in</button>
+          </form>
+
+          <p class="auth-privacy-note">Your account is secured by Supabase authentication.</p>
+        </section>
+
+        <section class="study-advice" aria-labelledby="adviceTitle">
+          <div class="advice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 0-4.4 12.45c.8.65 1.4 1.35 1.4 2.3h6c0-.95.6-1.65 1.4-2.3A7 7 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 20h5m-4.5 2h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 0v1m9 3-1 1M3 4l1 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
-        </div>
+          <div>
+            <p class="advice-kicker">A GENTLE STUDY REMINDER</p>
+            <h2 id="adviceTitle">Start smaller than you think.</h2>
+            <p>Choose one task, focus for 25 minutes, then take a short reset. A little momentum goes a long way.</p>
+          </div>
+        </section>
       </div>
+    </main>
 
-      <!-- Event Cards Grid -->
-      <div class="grid-container" id="eventsGrid"></div>
-    </section>
-  </main>
-
-  <!-- EVENT DETAILS MODAL -->
-  <div class="modal-backdrop" id="eventModalBackdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="modalTitle">Event Title</h3>
-        <button class="close-x" id="modalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body">
-        <!-- Motivational Exam Banner -->
-        <div class="exam-notice" id="modalExamNotice" style="display: none;"></div>
-
-        <div class="info-row">
-          <span>📅 Date:</span> <strong id="modalDates">--</strong>
-        </div>
-        <div class="info-row">
-          <span>🕐 Time:</span> <strong id="modalTime">Not specified</strong>
-        </div>
-        <div class="info-row">
-          <span>📍 Location:</span> <strong id="modalLocation">To be announced</strong>
-        </div>
-        <div class="info-row">
-          <span>🏷️ Category:</span> <strong id="modalCategory">Academic</strong>
-        </div>
-        <div class="info-row">
-          <span>📋 Source:</span> <strong id="modalSource">Official Academic Calendar</strong>
-        </div>
-
-        <div class="modal-desc-box">
-          <small>ABOUT THIS EVENT:</small>
-          <p id="modalDescription">Description details here...</p>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <div class="modal-export-actions">
-          <button class="btn btn-outline btn-sm" id="exportIcsBtn">📅 Export (.ics)</button>
-        </div>
-        <div class="action-buttons">
-          <span id="modalPersonalActions" style="display: none;">
-            <button class="btn btn-outline btn-sm" id="editEventBtn">Edit</button>
-            <button class="btn btn-danger btn-sm" id="deleteEventBtn">Delete</button>
-          </span>
-          <span id="modalOfficialActions" hidden>
-            <button class="btn btn-danger btn-sm" id="deleteOfficialEventBtn">Delete Official Event</button>
-          </span>
-          <button class="btn btn-outline" id="postponeEventBtn" type="button" hidden>
-            Postpone Event
-          </button>
-          <button class="btn btn-primary" id="modalDoneBtn">Close</button>
-        </div>
-      </div>
-    </div>
+    <footer class="auth-footer">Made with <span aria-label="love">❤️</span> by Vivek</footer>
   </div>
 
-  <!-- ADD / EDIT EVENT MODAL -->
-  <div class="modal-backdrop" id="addEventModalBackdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="formModalTitle">Add Event</h3>
-        <button class="close-x" id="cancelFormXBtn">✕</button>
-      </div>
-
-      <form id="eventForm">
-        <div class="modal-body form-body">
-          <label>Event Title *</label>
-          <input type="text" id="formTitle" placeholder="e.g. Coding Competition, Dance Practice" required />
-
-          <label>Category <span id="autoDetectNotice" style="display:none; color:#38bdf8;">(Auto-Detected!)</span></label>
-          <select id="formCategory">
-            <option value="Academic">Academic</option>
-            <option value="Exams">Exams</option>
-            <option value="Reviews & Submissions">Reviews & Submissions</option>
-            <option value="Fests & Cultural">Fests & Cultural</option>
-            <option value="Breaks">Breaks</option>
-            <option value="Technical">Technical</option>
-          </select>
-
-          <div class="form-row">
-            <div>
-              <label>Start Date *</label>
-              <input type="date" id="formStartDate" required />
-            </div>
-            <div>
-              <label>End Date</label>
-              <input type="date" id="formEndDate" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div>
-              <label>Start Time</label>
-              <input type="time" id="formStartTime" />
-            </div>
-            <div>
-              <label>End Time</label>
-              <input type="time" id="formEndTime" />
-            </div>
-          </div>
-
-          <label>Location</label>
-          <input type="text" id="formLocation" placeholder="e.g. Computer Lab 2" />
-
-          <label>Description</label>
-          <textarea id="formDesc" rows="2" placeholder="Brief notes about the activity..."></textarea>
-        </div>
-        <div id="formValidationMessage" class="form-validation-message" role="alert" aria-live="polite" hidden></div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline" id="cancelFormBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="saveEventSubmitBtn">Save Event</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- TEACHER ACTION PASSWORD -->
-  <div class="modal-backdrop" id="staffActionPasswordBackdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Confirm Teacher Action</h3>
-        <button class="close-x" id="closeStaffActionPasswordBtn" type="button" aria-label="Cancel">✕</button>
-      </div>
-      <form id="staffActionPasswordForm">
-        <div class="modal-body form-body">
-          <p>Enter the shared staff action password to continue.</p>
-          <label for="staffActionPasswordInput">Staff action password</label>
-          <input type="password" id="staffActionPasswordInput" autocomplete="off" required />
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" id="cancelStaffActionPasswordBtn" type="button">Cancel</button>
-          <button class="btn btn-primary" type="submit">Continue</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- BASIC SETTINGS MODAL -->
-  <div class="modal-backdrop" id="settingsModalBackdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Settings & Overview</h3>
-        <button class="close-x" id="closeSettingsBtn">✕</button>
-      </div>
-      <div class="modal-body text-xs space-y-4">
-        <div>
-          <h4 class="settings-title">MY EVENTS MANAGEMENT</h4>
-          <p class="settings-desc">Manage personal activities stored in your account and synced across devices.</p>
-          <button class="btn btn-outline btn-sm mt-2" id="clearMyEventsBtn">Clear My Personal Events</button>
-        </div>
-        <div>
-          <h4 class="settings-title">NOTIFICATIONS</h4>
-          <p class="settings-desc">Background reminders and Web Push notifications are not enabled in the static shared version.</p>
-        </div>
-        <div>
-          <h4 class="settings-title">ABOUT CAMPUSSYNC / ACAMICS</h4>
-          <p class="settings-desc">MIT CSN Autonomous Calendar & Event Management System for Second Year B.Tech CSE.</p>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="saveSettingsDoneBtn">Done</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="app.js"></script>
+  <script type="module" src="auth.js"></script>
 </body>
 </html>

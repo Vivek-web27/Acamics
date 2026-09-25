@@ -3,13 +3,19 @@
  * Cache-only support for the static deployment.
  * Web Push/reminder handling is intentionally not included here.
  */
-const CACHE_NAME = "acamics-static-v1";
+const CACHE_NAME = "acamics-static-v4";
 
 const STATIC_ASSETS = [
   "./",
   "./index.html",
+  "./calendar.html",
+  "./calendar-entry.js",
   "./style.css",
   "./app.js",
+  "./supabase-client.js",
+  "./login.html",
+  "./auth.css",
+  "./auth.js",
   "./manifest.json",
  
   "./posters/academic.png",

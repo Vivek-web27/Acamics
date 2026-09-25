@@ -1,12 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const SUPABASE_URL = "https://axceorzwzfuyuaeoswgv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hZPUC-ejVolPLx8_O7YktA_G4BTiejk";
-
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-);
+import { supabase } from "./supabase-client.js";
 
 // -----------------------------
 // Supabase Authentication
@@ -82,75 +74,11 @@ async function handleAuthButton() {
     currentUser = null;
     currentUserRole = null;
     updateAuthButton();
-    await initApp();
+    window.location.assign("index.html");
     return;
   }
 
-  const mode = prompt(
-    "Account\n\nType SIGN IN to log in, or SIGN UP to create an account."
-  );
-
-  if (!mode) return;
-
-  const normalizedMode = mode.trim().toUpperCase();
-
-  if (normalizedMode !== "SIGN IN" && normalizedMode !== "SIGN UP") {
-    alert("Please type exactly SIGN IN or SIGN UP.");
-    return;
-  }
-
-  const email = prompt("Enter your email address:");
-  if (!email) return;
-
-  const password = prompt("Enter your password:");
-  if (!password) return;
-
-  if (normalizedMode === "SIGN UP") {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password
-    });
-
-    if (error) {
-      alert(`Sign up failed:\n\n${error.message}`);
-      return;
-    }
-
-    if (data.session && data.user) {
-      currentUser = data.user;
-
-      // Load the user's profile and role from Supabase.
-      await loadCurrentUser();
-
-      alert(`Account created and signed in as ${currentUser.email}.`);
-      await initApp();
-    } else {
-      alert(
-        "Account created successfully.\n\n" +
-        "Please check your email and confirm your account, then use Sign In."
-      );
-    }
-
-    return;
-  }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password
-  });
-
-  if (error) {
-    alert(`Sign in failed:\n\n${error.message}`);
-    return;
-  }
-
-  currentUser = data.user;
-
-  // Load the user's profile and role from Supabase.
-  await loadCurrentUser();
-
-  alert(`Signed in as ${currentUser.email}.`);
-  await initApp();
+  window.location.href = "index.html";
 }
 
 supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -1311,9 +1239,7 @@ async function deleteSelectedPersonalEvent() {
 // ==========================================
 // 10. SETUP LISTENERS
 // ==========================================
-document.addEventListener(
-  "DOMContentLoaded",
-  async () => {
+async function setupApp() {
 
     await loadCurrentUser();
 
@@ -1783,5 +1709,10 @@ document.addEventListener(
         await initApp();
         document.getElementById("settingsModalBackdrop").classList.remove("active");
       };
-  }
-);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupApp, { once: true });
+} else {
+  await setupApp();
+}
