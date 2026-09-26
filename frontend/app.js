@@ -13,10 +13,27 @@ function getCurrentUserId() {
 
 function updateAuthButton() {
   const button = document.getElementById("authBtn");
+  const roleBadge = document.getElementById("userRoleBadge");
+  if (roleBadge) {
+    if (currentUser) {
+      const role = currentUserRole || "unavailable";
+      roleBadge.textContent = role === "unavailable"
+        ? "Role unavailable"
+        : role.charAt(0).toUpperCase() + role.slice(1);
+      roleBadge.dataset.role = role;
+      roleBadge.hidden = false;
+    } else {
+      roleBadge.textContent = "";
+      roleBadge.hidden = true;
+      delete roleBadge.dataset.role;
+    }
+  }
+
   if (!button) return;
 
   if (currentUser) {
-    button.title = `Signed in as ${currentUser.email || "User"}`;
+    const roleLabel = currentUserRole || "Role unavailable";
+    button.title = `Signed in as ${currentUser.email || "User"} (${roleLabel})`;
     button.dataset.signedIn = "true";
     button.setAttribute("aria-label", "Account");
   } else {
