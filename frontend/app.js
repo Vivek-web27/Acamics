@@ -144,6 +144,7 @@ const LEGACY_PERSONAL_EVENTS_KEY = "campussync_personal_events";
 let allEvents = [];
 let editingEventId = null;
 let eventFormScope = "personal";
+let lifecycleActionMode = null;
 
 // Coordinated Filter State
 let activeFilters = {
@@ -152,6 +153,10 @@ let activeFilters = {
   status: "ALL"
 };
 
+let selectedCalendarYear = new Date().getFullYear();
+let selectedCohortStartYear = null;
+let selectedAcademicPart = null;
+
 let searchQuery = "";
 let selectedEvent = null;
 
@@ -159,6 +164,7 @@ let selectedEvent = null;
 // 1. SIMPLE DYNAMIC STATUS CALCULATOR
 // ==========================================
 function getDisplayStatus(ev) {
+  if (ev?.lifecycle_status === "cancelled") return "Cancelled";
   if (ev?.lifecycle_status === "postponed") {
     return "Postponed";
   }
@@ -167,13 +173,36 @@ function getDisplayStatus(ev) {
     return "Completed";
   }
 
-  if (ev?.lifecycle_status === "ongoing") {
-    return "Ongoing";
-  }
+  const dateStatus = getEventStatus(ev?.start_date, ev?.end_date);
+  // Official events are completed only after staff records confirmation and proof.
+  if (ev?.isOfficial && dateStatus === "Completed") return "Awaiting confirmation";
+  if (ev?.lifecycle_status === "ongoing") return "Ongoing";
+  return dateStatus;
+}
 
-  return getEventStatus(
-    ev?.start_date,
-    ev?.end_date
+function localTodayString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function canConfirmEventCompletion(ev) {
+  const endDate = ev?.end_date || ev?.start_date;
+  return Boolean(
+    ev?.isOfficial &&
+    isStaffUser() &&
+    ev?.lifecycle_status !== "cancelled" &&
+    ev?.lifecycle_status !== "completed" &&
+    endDate &&
+    endDate <= localTodayString()
+  );
+}
+
+function canCancelOfficialEvent(ev) {
+  return Boolean(
+    ev?.isOfficial &&
+    isStaffUser() &&
+    ev?.lifecycle_status !== "cancelled" &&
+    ev?.lifecycle_status !== "completed"
   );
 }
 
@@ -447,11 +476,98 @@ async function initApp() {
 
     allEvents = [...officialTagged, ...personalEvents];
 
+    renderCalendarHierarchy();
     renderCards();
     updateNextEventBanner();
   } catch (err) {
     console.error("Initialization error:", err);
   }
+}
+
+function getCalendarYear(ev) {
+  const explicitYear = Number(ev?.calendar_year);
+  if (Number.isInteger(explicitYear) && explicitYear >= 1900) return explicitYear;
+  const fromDate = Number(String(ev?.start_date || "").slice(0, 4));
+  return Number.isInteger(fromDate) ? fromDate : null;
+}
+
+function getCohortLabel(calendarYear, cohortStartYear) {
+  const yearNumber = calendarYear - cohortStartYear + 1;
+  const suffix = yearNumber % 100 >= 11 && yearNumber % 100 <= 13
+    ? "th"
+    : ({ 1: "st", 2: "nd", 3: "rd" }[yearNumber % 10] || "th");
+  return `${yearNumber}${suffix} year (${cohortStartYear}–${cohortStartYear + 4})`;
+}
+
+function renderCalendarHierarchy() {
+  const container = document.getElementById("calendarYearGroups");
+  if (!container) return;
+
+  const years = [...new Set(allEvents
+    .filter(event => event.isOfficial)
+    .map(getCalendarYear)
+    .filter(year => Number.isInteger(year)))].sort((a, b) => a - b);
+  if (!years.length) years.push(new Date().getFullYear());
+  if (!years.includes(selectedCalendarYear)) {
+    selectedCalendarYear = years.includes(new Date().getFullYear())
+      ? new Date().getFullYear()
+      : years[years.length - 1];
+  }
+
+  const calendarTitle = document.getElementById("calendarTitle");
+  if (calendarTitle) {
+    calendarTitle.textContent = selectedCohortStartYear === null
+      ? `The calendar · ${selectedCalendarYear} · choose a batch`
+      : `${getCohortLabel(selectedCalendarYear, selectedCohortStartYear)}${selectedAcademicPart === null ? " · choose a part" : ` · Part ${selectedAcademicPart}`}`;
+  }
+
+  container.innerHTML = years.map(year => {
+    const isSelectedYear = year === selectedCalendarYear;
+    const cohorts = [0, 1, 2, 3].map(offset => year - offset);
+    const batchControls = `<div class="cohort-batch-list" aria-label="${year} undergraduate cohorts">
+          ${cohorts.map(cohort => `<button type="button" class="filter-pill calendar-cohort-btn ${selectedCohortStartYear === cohort && isSelectedYear ? "active" : ""}" data-calendar-year="${year}" data-cohort="${cohort}">${escapeHtml(getCohortLabel(year, cohort))}</button>`).join("")}
+        </div>
+        ${selectedCohortStartYear !== null && selectedCalendarYear === year
+          ? `<div class="calendar-part-picker" aria-label="Academic calendar part">
+              <span class="calendar-part-label">${escapeHtml(getCohortLabel(year, selectedCohortStartYear))} calendar</span>
+              <div class="calendar-part-buttons">
+                <button type="button" class="filter-pill calendar-part-btn ${selectedAcademicPart === 1 ? "active" : ""}" data-part="1">Part 1</button>
+                <button type="button" class="filter-pill calendar-part-btn ${selectedAcademicPart === 2 ? "active" : ""}" data-part="2">Part 2</button>
+              </div>
+            </div>`
+          : ""}`;
+    return `<details class="calendar-year-group" data-year="${year}" ${isSelectedYear ? "open" : ""}>
+      <summary><span>${year}</span><span class="calendar-year-caption">${year} calendar</span></summary>
+      ${batchControls}
+    </details>`;
+  }).join("");
+
+  container.querySelectorAll(".calendar-year-group").forEach(group => {
+    group.addEventListener("toggle", () => {
+      if (!group.open) return;
+      container.querySelectorAll(".calendar-year-group").forEach(other => {
+        if (other !== group) other.open = false;
+      });
+    });
+  });
+  container.querySelectorAll(".calendar-cohort-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedCalendarYear = Number(button.dataset.calendarYear);
+      selectedCohortStartYear = Number(button.dataset.cohort);
+      selectedAcademicPart = null;
+      renderCalendarHierarchy();
+      renderCards();
+      updateNextEventBanner();
+    });
+  });
+  container.querySelectorAll(".calendar-part-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedAcademicPart = Number(button.dataset.part);
+      renderCalendarHierarchy();
+      renderCards();
+      updateNextEventBanner();
+    });
+  });
 }
 
 // ==========================================
@@ -481,7 +597,28 @@ function getFilteredEvents() {
         return false;
       }
 
-      // B. Category filter
+      // B. Calendar year is taken from start_date so a January event appears
+      // under January's calendar year, even when its academic_year is 2026-27.
+      if (getCalendarYear(ev) !== selectedCalendarYear) return false;
+      if (selectedCohortStartYear === null || selectedAcademicPart === null) return false;
+
+      // Personal events belong to the signed-in user and are not cohort-scoped.
+      // Official events use cohort and academic-part values managed in Supabase.
+      if (ev.isOfficial) {
+        // Until the cohort migration is applied, older rows without this
+        // field are treated as part of the calendar's 2025-2029 cohort.
+        const cohortTargets = Array.isArray(ev.target_cohort_start_years)
+          ? ev.target_cohort_start_years.map(Number)
+          : [2025];
+        if (cohortTargets.length > 0 && !cohortTargets.includes(selectedCohortStartYear)) return false;
+        if (Number(ev.academic_part ?? 1) !== selectedAcademicPart) return false;
+      } else if (selectedAcademicPart === 2 && activeFilters.source !== "PERSONAL") {
+        // Part 2 has no official calendar data yet. Keep this view empty until
+        // its calendar is imported; personal events remain available by choice.
+        return false;
+      }
+
+      // C. Category filter
       if (
         activeFilters.category !== "ALL" &&
         ev.category.toLowerCase() !==
@@ -490,7 +627,7 @@ function getFilteredEvents() {
         return false;
       }
 
-      // C. Dynamic status filter
+      // D. Dynamic status filter
       const status = getDisplayStatus(ev);
 
       if (
@@ -501,7 +638,7 @@ function getFilteredEvents() {
         return false;
       }
 
-      // D. Search filter
+      // E. Search filter
       if (q) {
         const matchTitle =
           (ev.title || "").toLowerCase().includes(q);
@@ -553,6 +690,21 @@ function renderCards() {
   grid.innerHTML = "";
 
   const filtered = getFilteredEvents();
+
+  if (selectedCohortStartYear === null) {
+    grid.innerHTML = `<div class="empty-state">Choose a batch above to see its academic calendar.</div>`;
+    return;
+  }
+
+  if (selectedAcademicPart === null) {
+    grid.innerHTML = `<div class="empty-state">Choose Part 1 or Part 2 above for ${escapeHtml(getCohortLabel(selectedCalendarYear, selectedCohortStartYear))}.</div>`;
+    return;
+  }
+
+  if (selectedAcademicPart === 2 && activeFilters.source !== "PERSONAL") {
+    grid.innerHTML = `<div class="empty-state">The Part 2 academic calendar for ${escapeHtml(getCohortLabel(selectedCalendarYear, selectedCohortStartYear))} has not been added yet.</div>`;
+    return;
+  }
 
   if (filtered.length === 0) {
     grid.innerHTML =
@@ -610,9 +762,15 @@ function renderCards() {
           }
         </div>
 
-        <div class="status-badge status-${status.toLowerCase()}">
+        <div class="status-badge status-${status.toLowerCase().replace(/\s+/g, "-")}">
           ${status}
         </div>
+
+        ${canConfirmEventCompletion(ev) ? `
+          <button class="card-completion-action" type="button" aria-label="Confirm ${escapeHtml(ev.title)} is complete">
+            Confirm completed?
+          </button>
+        ` : ""}
 
       </div>
 
@@ -656,10 +814,12 @@ function renderCards() {
       );
     }
 
-    card.addEventListener(
-      "click",
-      () => openEventDetails(ev)
-    );
+    card.querySelector(".card-completion-action")?.addEventListener("click", event => {
+      event.stopPropagation();
+      openEventDetails(ev).then(() => openLifecycleAction("complete"));
+    });
+
+    card.addEventListener("click", () => openEventDetails(ev));
 
     grid.appendChild(card);
   });
@@ -672,12 +832,13 @@ function updateNextEventBanner() {
   const now =
     new Date().toISOString().split("T")[0];
 
-  const upcoming = allEvents
+  const upcoming = getFilteredEvents()
     .filter(
       e =>
         e.start_date >= now &&
         getDisplayStatus(e) !== "Completed" &&
-        getDisplayStatus(e) !== "Postponed"
+        getDisplayStatus(e) !== "Postponed" &&
+        getDisplayStatus(e) !== "Cancelled"
     )
     .sort((a, b) =>
       a.start_date.localeCompare(
@@ -770,9 +931,11 @@ async function callStaffAction(action, details = {}) {
     throw new Error("Only signed-in admins and teachers can manage official events.");
   }
 
-  const actionPassword = currentUserRole === "teacher"
-    ? await requestTeacherActionPassword()
-    : "";
+  const actionPassword = Object.hasOwn(details, "actionPassword")
+    ? details.actionPassword
+    : currentUserRole === "teacher"
+      ? await requestTeacherActionPassword()
+      : "";
   if (actionPassword === null) return null;
 
   const { data, error } = await supabase.functions.invoke("staff-event-action", {
@@ -843,49 +1006,197 @@ async function postponeSelectedEvent() {
       return;
     }
 
-    const reason = prompt(
-      "Why is this official event being postponed?\n\nA reason is required:"
-    );
-    if (reason === null) return;
-    if (!reason.trim()) {
-      alert("A postponement reason is required.");
-      return;
-    }
-
-    const newStartDate = prompt(
-      "Enter the new start date (YYYY-MM-DD):",
-      selectedEvent.start_date
-    );
-    if (newStartDate === null) return;
-    const newEndDate = prompt(
-      "Enter the new end date (YYYY-MM-DD):",
-      selectedEvent.end_date || newStartDate
-    );
-    if (newEndDate === null) return;
-    if (!validDateRange(newStartDate, newEndDate)) {
-      alert("Enter valid dates; the end date cannot be before the start date.");
-      return;
-    }
-
-    try {
-      const result = await callStaffAction("postpone_official", {
-        eventId: Number(selectedEvent.id),
-        newStartDate,
-        newEndDate,
-        reason: reason.trim()
-      });
-      if (!result) return;
-    } catch (error) {
-      console.error("Official event postponement failed:", error);
-      alert(`Could not postpone event:\n\n${error.message}`);
-      return;
-    }
-
-    alert("Official event postponed successfully.");
+    openLifecycleAction("postpone");
+    return;
   }
 
   closeEventDetails();
   await initApp();
+}
+
+const EVENT_PROOF_BUCKET = "acamics-event-proof";
+const MAX_EVENT_PROOF_SIZE = 10 * 1024 * 1024;
+
+function openLifecycleAction(mode) {
+  if (!selectedEvent || !currentUser) return;
+  if (mode === "postpone" && (!selectedEvent.isOfficial || !isStaffUser() || !canCancelOfficialEvent(selectedEvent))) return;
+  if (mode === "cancel" && !canCancelOfficialEvent(selectedEvent)) return;
+  if (mode === "complete" && !canConfirmEventCompletion(selectedEvent)) return;
+
+  lifecycleActionMode = mode;
+  const isCompletion = mode === "complete";
+  const isCancellation = mode === "cancel";
+  const backdrop = document.getElementById("lifecycleActionBackdrop");
+  const form = document.getElementById("lifecycleActionForm");
+  const fileInput = document.getElementById("lifecycleAttachmentInput");
+  document.getElementById("lifecycleActionTitle").textContent = isCompletion
+    ? "Confirm event completion"
+    : isCancellation
+      ? "Cancel official event"
+      : "Postpone official event";
+  document.getElementById("lifecycleActionHelp").textContent = isCompletion
+    ? "Add a short completion note and attach proof. A file is required before this event can be marked completed."
+    : isCancellation
+      ? "This keeps the event in the calendar with a Cancelled status. Add a reason so everyone can see why it was cancelled."
+      : "Tell everyone why the event is changing dates. Adding a supporting file is optional.";
+  document.getElementById("lifecycleDateFields").hidden = isCompletion || isCancellation;
+  document.getElementById("lifecycleReasonLabel").textContent = isCompletion
+    ? "Completion note *"
+    : isCancellation
+      ? "Cancellation reason *"
+      : "Postponement reason *";
+  document.getElementById("lifecycleFilePickerRow").hidden = isCancellation;
+  document.getElementById("lifecycleAttachmentHint").hidden = isCancellation;
+  document.getElementById("lifecycleAttachmentButtonText").textContent = isCompletion
+    ? "Attach proof (required)"
+    : "Add attachment (optional)";
+  document.getElementById("lifecycleAttachmentHint").textContent = isCompletion
+    ? "Required. A photo, timetable, PDF, or other proof is accepted, up to 10 MB."
+    : "Optional. Attach a note or related document, up to 10 MB.";
+  document.getElementById("submitLifecycleActionBtn").textContent = isCompletion
+    ? "Mark completed"
+    : isCancellation
+      ? "Cancel event"
+      : "Save postponement";
+  document.getElementById("lifecycleNewStartDate").value = selectedEvent.start_date || "";
+  document.getElementById("lifecycleNewEndDate").value = selectedEvent.end_date || selectedEvent.start_date || "";
+  document.getElementById("lifecycleReasonInput").value = "";
+  document.getElementById("lifecycleActionMessage").hidden = true;
+  fileInput.value = "";
+  // Keep validation in the submit handler so mobile browsers can focus the hidden picker.
+  fileInput.required = false;
+  fileInput.accept = "image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  document.getElementById("lifecycleFilePickerRow").hidden = isCancellation;
+  document.getElementById("lifecycleAttachmentName").textContent = "No file selected";
+  form.querySelector("#submitLifecycleActionBtn").disabled = false;
+  backdrop.classList.add("active");
+}
+
+function closeLifecycleAction() {
+  document.getElementById("lifecycleActionBackdrop")?.classList.remove("active");
+  lifecycleActionMode = null;
+}
+
+function showLifecycleActionMessage(message) {
+  const node = document.getElementById("lifecycleActionMessage");
+  node.textContent = message;
+  node.hidden = false;
+}
+
+async function uploadEventProof(file) {
+  if (!file) return null;
+  if (file.size > MAX_EVENT_PROOF_SIZE) {
+    throw new Error("The attachment must be 10 MB or smaller.");
+  }
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "proof";
+  const path = `${currentUser.id}/${selectedEvent.id}/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from(EVENT_PROOF_BUCKET).upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type || "application/octet-stream"
+  });
+  if (error) throw new Error(`Could not upload attachment: ${error.message}`);
+  return path;
+}
+
+async function submitLifecycleAction(event) {
+  event.preventDefault();
+  if (!selectedEvent || !lifecycleActionMode) return;
+
+  const mode = lifecycleActionMode;
+  const isCompletion = mode === "complete";
+  const isCancellation = mode === "cancel";
+  const reason = document.getElementById("lifecycleReasonInput").value.trim();
+  const file = document.getElementById("lifecycleAttachmentInput").files?.[0] || null;
+  const startDate = document.getElementById("lifecycleNewStartDate").value;
+  const endDate = document.getElementById("lifecycleNewEndDate").value;
+  if (!reason) return showLifecycleActionMessage(isCompletion
+    ? "A completion note is required."
+    : isCancellation
+      ? "A cancellation reason is required."
+      : "A postponement reason is required.");
+  if (isCompletion && !file) return showLifecycleActionMessage("Attach a proof file before confirming completion.");
+  if (!isCompletion && !isCancellation && !validDateRange(startDate, endDate)) {
+    return showLifecycleActionMessage("Enter valid dates; the end date cannot be before the start date.");
+  }
+  if (file && file.size > MAX_EVENT_PROOF_SIZE) {
+    return showLifecycleActionMessage("The attachment must be 10 MB or smaller.");
+  }
+
+  const submitButton = document.getElementById("submitLifecycleActionBtn");
+  submitButton.disabled = true;
+  submitButton.textContent = "Saving…";
+  let attachmentPath = null;
+  try {
+    const actionPassword = currentUserRole === "teacher"
+      ? await requestTeacherActionPassword()
+      : "";
+    if (actionPassword === null) return;
+    attachmentPath = await uploadEventProof(file);
+    const action = isCompletion ? "complete_official" : isCancellation ? "cancel_official" : "postpone_official";
+    const details = {
+      eventId: Number(selectedEvent.id),
+      reason,
+      attachmentPath,
+      actionPassword
+    };
+    if (!isCompletion && !isCancellation) {
+      details.newStartDate = startDate;
+      details.newEndDate = endDate;
+    }
+    const result = await callStaffAction(action, details);
+    if (!result) return;
+
+    closeLifecycleAction();
+    closeEventDetails();
+    await initApp();
+  } catch (error) {
+    console.error("Event lifecycle update failed:", error);
+    showLifecycleActionMessage(error.message || "Could not save this event update.");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = isCompletion ? "Mark completed" : isCancellation ? "Cancel event" : "Save postponement";
+  }
+}
+
+async function renderEventLifecycleHistory(ev) {
+  const section = document.getElementById("modalLifecycleHistory");
+  if (!section) return;
+  const records = [
+    ...(Array.isArray(ev.postponement_history) ? ev.postponement_history.map(item => ({ ...item, kind: "Postponed" })) : []),
+    ...(Array.isArray(ev.completion_history) ? ev.completion_history.map(item => ({ ...item, kind: "Completion confirmed" })) : []),
+    ...(Array.isArray(ev.cancellation_history) ? ev.cancellation_history.map(item => ({ ...item, kind: "Cancelled" })) : [])
+  ].sort((a, b) => String(a.postponed_at || a.completed_at || a.cancelled_at || "").localeCompare(String(b.postponed_at || b.completed_at || b.cancelled_at || "")));
+
+  if (records.length === 0) {
+    section.hidden = true;
+    section.innerHTML = "";
+    return;
+  }
+
+  const entries = await Promise.all(records.map(async record => {
+    const path = record.attachment_path;
+    let attachmentLink = "";
+    if (path) {
+      try {
+        const { data, error } = await supabase.storage.from(EVENT_PROOF_BUCKET).createSignedUrl(path, 60 * 60);
+        if (!error && data?.signedUrl) {
+          attachmentLink = `<a class="event-proof-link" href="${escapeHtml(data.signedUrl)}" target="_blank" rel="noopener">View attachment</a>`;
+        }
+      } catch (error) {
+        console.warn("Could not create a signed event-proof link:", error);
+      }
+    }
+    const date = record.postponed_at || record.completed_at || record.cancelled_at;
+    const dateText = date ? new Date(date).toLocaleString() : "Date unavailable";
+    const reasonLabel = record.kind === "Postponed" ? "Postponement reason" : record.kind === "Cancelled" ? "Cancellation reason" : "Completion note";
+    const dateChange = record.kind === "Postponed" && record.new_start_date
+      ? `<p class="event-history-dates">New dates: ${escapeHtml(record.new_start_date)} – ${escapeHtml(record.new_end_date || record.new_start_date)}</p>`
+      : "";
+    return `<article class="event-history-entry"><div class="event-history-heading"><strong>${record.kind}</strong><time>${escapeHtml(dateText)}</time></div><p><span>${reasonLabel}:</span> ${escapeHtml(record.reason || "Not provided")}</p>${dateChange}${attachmentLink}</article>`;
+  }));
+  section.innerHTML = `<h4>Event history</h4>${entries.join("")}`;
+  section.hidden = false;
 }
 
 async function deleteSelectedOfficialEvent() {
@@ -1008,6 +1319,8 @@ async function openEventDetails(ev) {
     );
   // Refresh the role before deciding whether the static HTML button is visible.
   const postponeBtn = document.getElementById("postponeEventBtn");
+  const completeBtn = document.getElementById("markCompletedBtn");
+  const cancelBtn = document.getElementById("cancelOfficialEventBtn");
 
   if (currentUser) {
     const { data: profile, error: roleError } = await supabase
@@ -1033,10 +1346,14 @@ async function openEventDetails(ev) {
   const officialActions = document.getElementById("modalOfficialActions");
 
   if (postponeBtn) {
-    postponeBtn.hidden = !(canManageOfficial || canReschedulePersonal);
+    postponeBtn.hidden = !(canReschedulePersonal || (canManageOfficial && canCancelOfficialEvent(ev)));
     postponeBtn.textContent = ev.isOfficial ? "Postpone Event" : "Reschedule Event";
   }
+  if (completeBtn) completeBtn.hidden = !canConfirmEventCompletion(ev);
   if (officialActions) officialActions.hidden = !canManageOfficial;
+  if (cancelBtn) cancelBtn.hidden = !canCancelOfficialEvent(ev);
+
+  await renderEventLifecycleHistory(ev);
 
   modal.classList.add("active");
 }
@@ -1147,6 +1464,12 @@ function openAddModal(eventToEdit = null, scope = "personal") {
 
   form.reset();
   eventFormScope = eventToEdit ? "personal" : scope;
+  const officialAudienceFields = document.getElementById("officialAudienceFields");
+  if (officialAudienceFields) officialAudienceFields.hidden = eventFormScope !== "official";
+  const officialTargetCohort = document.getElementById("officialTargetCohort");
+  if (officialTargetCohort) officialTargetCohort.value = "all";
+  const officialAcademicPart = document.getElementById("officialAcademicPart");
+  if (officialAcademicPart) officialAcademicPart.value = String(selectedAcademicPart || 1);
 
   document.getElementById(
     "autoDetectNotice"
@@ -1213,11 +1536,28 @@ function openAddModal(eventToEdit = null, scope = "personal") {
       : "Add Personal Event";
   }
 
+  populateOfficialCohortOptions(
+    document.getElementById("formStartDate")?.value?.slice(0, 4) || new Date().getFullYear()
+  );
   document
     .getElementById(
       "addEventModalBackdrop"
     )
     .classList.add("active");
+}
+
+function populateOfficialCohortOptions(calendarYear, selectedValue = "all") {
+  const select = document.getElementById("officialTargetCohort");
+  if (!select) return;
+  const year = Number(calendarYear) || new Date().getFullYear();
+  select.innerHTML = `<option value="all">All undergraduate batches</option>` +
+    [0, 1, 2, 3].map(offset => {
+      const cohort = year - offset;
+      return `<option value="${cohort}">${escapeHtml(getCohortLabel(year, cohort))}</option>`;
+    }).join("");
+  select.value = [...select.options].some(option => option.value === String(selectedValue))
+    ? String(selectedValue)
+    : "all";
 }
 
 async function deleteSelectedPersonalEvent() {
@@ -1262,9 +1602,30 @@ async function setupApp() {
 
     await initApp();
 
+    document.getElementById("formStartDate")?.addEventListener("change", event => {
+      populateOfficialCohortOptions(event.target.value.slice(0, 4));
+    });
+
     document
       .getElementById("postponeEventBtn")
       ?.addEventListener("click", postponeSelectedEvent);
+
+    document.getElementById("markCompletedBtn")?.addEventListener("click", () => openLifecycleAction("complete"));
+    document.getElementById("cancelOfficialEventBtn")?.addEventListener("click", () => openLifecycleAction("cancel"));
+    document.getElementById("lifecycleActionForm")?.addEventListener("submit", submitLifecycleAction);
+    document.getElementById("chooseLifecycleAttachmentBtn")?.addEventListener("click", () => {
+      document.getElementById("lifecycleAttachmentInput")?.click();
+    });
+    document.getElementById("lifecycleAttachmentInput")?.addEventListener("change", event => {
+      const file = event.target.files?.[0];
+      document.getElementById("lifecycleAttachmentName").textContent = file?.name || "No file selected";
+      document.getElementById("lifecycleActionMessage").hidden = true;
+    });
+    document.getElementById("cancelLifecycleActionBtn")?.addEventListener("click", closeLifecycleAction);
+    document.getElementById("cancelLifecycleActionXBtn")?.addEventListener("click", closeLifecycleAction);
+    document.getElementById("lifecycleActionBackdrop")?.addEventListener("click", event => {
+      if (event.target.id === "lifecycleActionBackdrop") closeLifecycleAction();
+    });
 
     if (!document.getElementById("authBtn")) {
       const authButton = document.createElement("button");
@@ -1394,6 +1755,14 @@ async function setupApp() {
           description: descInput.value.trim(),
           color_theme: "linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%)"
         };
+
+        if (eventFormScope === "official") {
+          const selectedCohort = document.getElementById("officialTargetCohort").value;
+          eventData.target_cohort_start_years = selectedCohort !== "all"
+            ? [Number(selectedCohort)]
+            : [];
+          eventData.academic_part = Number(document.getElementById("officialAcademicPart").value);
+        }
 
         const submitButton = document.getElementById("saveEventSubmitBtn");
         submitButton.disabled = true;

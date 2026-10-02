@@ -77,6 +77,17 @@
         <p class="section-hint">Find the dates that matter to you.</p>
       </div>
 
+      <section class="cohort-calendar" id="cohortCalendarNav" aria-label="Calendar year and undergraduate batch selection">
+        <div class="cohort-calendar-heading">
+          <div>
+            <p class="eyebrow section-eyebrow">BROWSE BY CALENDAR YEAR</p>
+            <h3>Choose your calendar</h3>
+          </div>
+        </div>
+        <div id="calendarYearGroups" class="calendar-year-groups"></div>
+        <p class="cohort-calendar-hint">Official events follow the selected batch and part. Your private events are available with “My events”.</p>
+      </section>
+
       <div class="filter-panel">
         <div class="filter-row source-row">
           <span class="filter-label">Show</span>
@@ -107,7 +118,9 @@
             <button class="filter-pill stat-pill" data-status="Upcoming">Upcoming</button>
             <button class="filter-pill stat-pill" data-status="Ongoing">Ongoing</button>
             <button class="filter-pill stat-pill" data-status="Completed">Completed</button>
+            <button class="filter-pill stat-pill" data-status="Awaiting confirmation">Awaiting confirmation</button>
             <button class="filter-pill stat-pill" data-status="Postponed">Postponed</button>
+            <button class="filter-pill stat-pill" data-status="Cancelled">Cancelled</button>
           </div>
         </div>
       </div>
@@ -148,6 +161,7 @@
           <small>ABOUT THIS EVENT:</small>
           <p id="modalDescription">Description details here...</p>
         </div>
+        <section class="event-lifecycle-history" id="modalLifecycleHistory" hidden aria-label="Event history"></section>
       </div>
       <div class="modal-footer">
         <div class="modal-export-actions">
@@ -159,14 +173,54 @@
             <button class="btn btn-danger btn-sm" id="deleteEventBtn">Delete</button>
           </span>
           <span id="modalOfficialActions" hidden>
+            <button class="btn btn-outline btn-sm" id="cancelOfficialEventBtn" type="button">Cancel Event</button>
             <button class="btn btn-danger btn-sm" id="deleteOfficialEventBtn">Delete Official Event</button>
           </span>
           <button class="btn btn-outline" id="postponeEventBtn" type="button" hidden>
             Postpone Event
           </button>
+          <button class="btn btn-primary" id="markCompletedBtn" type="button" hidden>
+            Confirm completion
+          </button>
           <button class="btn btn-primary" id="modalDoneBtn">Close</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- POSTPONEMENT / COMPLETION RECORD -->
+  <div class="modal-backdrop" id="lifecycleActionBackdrop">
+    <div class="modal-card lifecycle-action-card">
+      <div class="modal-header">
+        <h3 id="lifecycleActionTitle">Update event</h3>
+        <button class="close-x" id="cancelLifecycleActionXBtn" type="button" aria-label="Cancel">✕</button>
+      </div>
+      <form id="lifecycleActionForm">
+        <div class="modal-body form-body">
+          <p id="lifecycleActionHelp"></p>
+          <div id="lifecycleDateFields" hidden>
+            <label for="lifecycleNewStartDate">New start date *</label>
+            <input type="date" id="lifecycleNewStartDate" />
+            <label for="lifecycleNewEndDate">New end date *</label>
+            <input type="date" id="lifecycleNewEndDate" />
+          </div>
+          <label for="lifecycleReasonInput" id="lifecycleReasonLabel">Reason *</label>
+          <textarea id="lifecycleReasonInput" rows="3" maxlength="1000" required></textarea>
+          <input type="file" id="lifecycleAttachmentInput" class="visually-hidden-file" />
+          <div class="lifecycle-file-row" id="lifecycleFilePickerRow">
+            <button class="btn btn-outline btn-sm" id="chooseLifecycleAttachmentBtn" type="button">
+              <span aria-hidden="true">＋</span> <span id="lifecycleAttachmentButtonText">Add attachment (optional)</span>
+            </button>
+            <span id="lifecycleAttachmentName" class="lifecycle-file-name">No file selected</span>
+          </div>
+          <small class="lifecycle-file-hint" id="lifecycleAttachmentHint">Optional. Attach a note or related document, up to 10 MB.</small>
+          <div id="lifecycleActionMessage" class="form-validation-message" role="alert" aria-live="polite" hidden></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancelLifecycleActionBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitLifecycleActionBtn">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -220,6 +274,17 @@
 
           <label>Description</label>
           <textarea id="formDesc" rows="2" placeholder="Brief notes about the activity..."></textarea>
+          <div id="officialAudienceFields" class="official-audience-fields" hidden>
+            <label for="officialTargetCohort">Show to</label>
+            <select id="officialTargetCohort">
+              <option value="all">All undergraduate batches</option>
+            </select>
+            <label for="officialAcademicPart">Academic calendar part</label>
+            <select id="officialAcademicPart">
+              <option value="1">Part 1</option>
+              <option value="2">Part 2</option>
+            </select>
+          </div>
         </div>
         <div id="formValidationMessage" class="form-validation-message" role="alert" aria-live="polite" hidden></div>
         <div class="modal-footer">

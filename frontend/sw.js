@@ -3,7 +3,7 @@
  * Cache-only support for the static deployment.
  * Web Push/reminder handling is intentionally not included here.
  */
-const CACHE_NAME = "acamics-static-v4";
+const CACHE_NAME = "acamics-static-v6";
 
 const STATIC_ASSETS = [
   "./",

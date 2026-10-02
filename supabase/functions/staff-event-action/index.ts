@@ -32,6 +32,15 @@ async function constantTimeEqual(left: string, right: string): Promise<boolean> 
   return difference === 0;
 }
 
+function validAttachmentPath(value: unknown, userId: string, eventId: number): value is string {
+  if (typeof value !== "string" || value.length > 500) return false;
+  const parts = value.split("/");
+  return value.startsWith(`${userId}/${eventId}/`) &&
+    parts.length === 3 &&
+    parts.every((part) => part.length > 0 && part !== "." && part !== "..") &&
+    /^[a-zA-Z0-9._/-]+$/.test(value);
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return jsonResponse(405, { error: "Method not allowed." });
@@ -72,7 +81,7 @@ Deno.serve(async (request) => {
 
     const body = await request.json();
     const action = body?.action;
-    if (!new Set(["create_official", "delete_official", "postpone_official"]).has(action)) {
+    if (!new Set(["create_official", "delete_official", "postpone_official", "complete_official", "cancel_official"]).has(action)) {
       return jsonResponse(400, { error: "Unsupported staff action." });
     }
 
@@ -113,6 +122,8 @@ Deno.serve(async (request) => {
       const category = typeof input.category === "string" ? input.category.trim() : "Academic";
       const startDate = input.start_date;
       const endDate = input.end_date || startDate;
+      const academicPart = Number(input.academic_part ?? 1);
+      const targetCohortYears = input.target_cohort_start_years ?? [];
       if (!title || title.length > 180) return jsonResponse(400, { error: "Enter an event title of 1–180 characters." });
       if (!isDate(startDate) || !isDate(endDate) || endDate < startDate) {
         return jsonResponse(400, { error: "Enter valid dates; the end date must not precede the start date." });
@@ -120,6 +131,19 @@ Deno.serve(async (request) => {
       if (!category || category.length > 80) return jsonResponse(400, { error: "Choose a valid category." });
       if (input.start_time && !isTime(input.start_time)) return jsonResponse(400, { error: "Enter a valid start time." });
       if (input.end_time && !isTime(input.end_time)) return jsonResponse(400, { error: "Enter a valid end time." });
+      if (academicPart !== 1 && academicPart !== 2) return jsonResponse(400, { error: "Choose Part 1 or Part 2." });
+      if (!Array.isArray(targetCohortYears) || targetCohortYears.length > 20 ||
+          targetCohortYears.some((year) => !Number.isInteger(year) || year < 1900 || year > 2200) ||
+          new Set(targetCohortYears).size !== targetCohortYears.length) {
+        return jsonResponse(400, { error: "Choose valid cohort start years." });
+      }
+      const eventDate = new Date(`${startDate}T00:00:00Z`);
+      const calendarYear = eventDate.getUTCFullYear();
+      const academicStartYear = eventDate.getUTCMonth() < 6 ? calendarYear - 1 : calendarYear;
+      const academicYear = `${academicStartYear}-${String(academicStartYear + 1).slice(-2)}`;
+      const yearLabel = targetCohortYears.length
+        ? targetCohortYears.map((year) => `${year}-${year + 4}`).join(", ")
+        : "All Undergraduate Batches";
 
       const { data, error } = await adminClient.from("events").insert({
         title,
@@ -132,8 +156,10 @@ Deno.serve(async (request) => {
         location: typeof input.location === "string" ? input.location.trim() || "To be announced" : "To be announced",
         location_type: "Physical",
         department: "All Departments",
-        academic_year: "2026-27",
-        year: "All Years",
+        academic_year: academicYear,
+        year: yearLabel,
+        academic_part: academicPart,
+        target_cohort_start_years: targetCohortYears,
         section: "All Sections",
         organizer: "Acamics Staff",
         description: typeof input.description === "string" ? input.description.trim() : "",
@@ -160,14 +186,57 @@ Deno.serve(async (request) => {
     }
 
     const eventId = Number(body.eventId);
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    const attachmentPath = body.attachmentPath || null;
+    if (!Number.isSafeInteger(eventId) || eventId <= 0) return jsonResponse(400, { error: "Invalid event id." });
+    if (!reason || reason.length > 1000) {
+      const message = action === "complete_official"
+        ? "A completion note is required."
+        : action === "cancel_official"
+          ? "A cancellation reason is required."
+          : "A postponement reason is required.";
+      return jsonResponse(400, { error: message });
+    }
+    if (action === "complete_official" && !validAttachmentPath(attachmentPath, user.id, eventId)) {
+      return jsonResponse(400, { error: "Attach a proof file before confirming completion." });
+    }
+    if (attachmentPath !== null) {
+      if (!validAttachmentPath(attachmentPath, user.id, eventId)) {
+        return jsonResponse(400, { error: "The attachment path is invalid." });
+      }
+      const { error: attachmentError } = await adminClient.storage
+        .from("acamics-event-proof")
+        .createSignedUrl(attachmentPath, 60);
+      if (attachmentError) return jsonResponse(400, { error: "The uploaded proof file could not be found." });
+    }
+
+    if (action === "complete_official") {
+      const { data, error } = await adminClient.rpc("staff_complete_event", {
+        p_actor_id: user.id,
+        p_event_id: eventId,
+        p_reason: reason,
+        p_attachment_path: attachmentPath,
+      });
+      if (error) throw error;
+      return jsonResponse(200, { event: data });
+    }
+
+    if (action === "cancel_official") {
+      if (attachmentPath !== null) return jsonResponse(400, { error: "Cancellation does not accept an attachment." });
+      const { data, error } = await adminClient.rpc("staff_cancel_event", {
+        p_actor_id: user.id,
+        p_event_id: eventId,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      return jsonResponse(200, { event: data });
+    }
+
     const newStartDate = body.newStartDate;
     const newEndDate = body.newEndDate;
-    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-    if (!Number.isSafeInteger(eventId) || eventId <= 0) return jsonResponse(400, { error: "Invalid event id." });
     if (!isDate(newStartDate) || !isDate(newEndDate) || newEndDate < newStartDate) {
       return jsonResponse(400, { error: "Enter valid dates; the end date must not precede the start date." });
     }
-    if (!reason) return jsonResponse(400, { error: "A postponement reason is required." });
 
     const { data, error } = await adminClient.rpc("staff_postpone_event", {
       p_actor_id: user.id,
@@ -175,7 +244,7 @@ Deno.serve(async (request) => {
       p_new_start_date: newStartDate,
       p_new_end_date: newEndDate,
       p_reason: reason,
-      p_attachment_path: null,
+      p_attachment_path: attachmentPath,
     });
     if (error) throw error;
     return jsonResponse(200, { event: data });
