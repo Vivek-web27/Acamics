@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/acamics-192.png" />
   <meta name="theme-color" content="#09090c" />
   <title>Acamics — Academic Calendar & Schedule</title>
   <link rel="stylesheet" href="style.css" />
@@ -27,11 +28,16 @@
       <!-- Existing app actions; account flow will get its own page later. -->
       <div class="topbar-actions">
         <button class="btn btn-primary" id="openAddEventBtn"><span class="add-icon" aria-hidden="true">+</span><span>Add event</span></button>
+        <button class="btn btn-outline" id="installAppBtn" type="button" hidden>Install app</button>
         <button class="icon-btn" id="shareAppBtn" title="Share Acamics" aria-label="Share Acamics">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </button>
         <button class="icon-btn" id="settingsToggleBtn" title="Settings" aria-label="Settings">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.6"/><path d="M19.2 13.8a7.7 7.7 0 0 0 0-3.6l1.4-1.1-1.7-3-1.7.7a7.7 7.7 0 0 0-3.1-1.8L13.8 3h-3.6l-.3 2a7.7 7.7 0 0 0-3.1 1.8l-1.7-.7-1.7 3 1.4 1.1a7.7 7.7 0 0 0 0 3.6l-1.4 1.1 1.7 3 1.7-.7a7.7 7.7 0 0 0 3.1 1.8l.3 2h3.6l.3-2a7.7 7.7 0 0 0 3.1-1.8l1.7.7 1.7-3-1.4-1.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn reminder-launch-btn" id="reminderToggleBtn" title="Reminders" aria-label="Open reminders" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 16 18 16 18 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 21h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="reminder-launch-dot" id="reminderEnabledDot" hidden></span>
         </button>
         <span class="role-badge" id="userRoleBadge" hidden></span>
         <button class="icon-btn account-btn" id="authBtn" title="Account" aria-label="Account">
@@ -330,10 +336,6 @@
           <button class="btn btn-outline btn-sm mt-2" id="clearMyEventsBtn">Clear My Personal Events</button>
         </div>
         <div>
-          <h4 class="settings-title">NOTIFICATIONS</h4>
-          <p class="settings-desc">Background reminders and Web Push notifications are not enabled in the static shared version.</p>
-        </div>
-        <div>
           <h4 class="settings-title">ABOUT CAMPUSSYNC / ACAMICS</h4>
           <p class="settings-desc">MIT CSN Autonomous Calendar & Event Management System for Second Year B.Tech CSE.</p>
         </div>
@@ -342,6 +344,45 @@
         <button class="btn btn-primary" id="saveSettingsDoneBtn">Done</button>
       </div>
     </div>
+  </div>
+
+  <!-- REMINDERS PANEL -->
+  <div class="modal-backdrop reminders-backdrop" id="remindersModalBackdrop" role="presentation">
+    <section class="modal-card reminders-page" role="dialog" aria-modal="true" aria-labelledby="remindersPageTitle">
+      <div class="modal-header">
+        <div class="reminders-page-heading">
+          <span class="reminders-page-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 16 18 16 18 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 21h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+          <div><h3 id="remindersPageTitle">Your reminders</h3><p>Stay ahead of the dates that matter.</p></div>
+        </div>
+        <button class="close-x" id="closeRemindersBtn" type="button" aria-label="Close reminders">✕</button>
+      </div>
+      <div class="modal-body reminders-page-body">
+        <section class="reminders-preferences-card" aria-label="Reminder preferences">
+          <p class="reminders-card-kicker">YOUR NOTIFICATION SETTINGS</p>
+          <p class="settings-desc">Allow notifications on this device, then choose the batch and timing you want.</p>
+          <label class="reminder-setting-label" for="reminderCohortSelect">Your batch</label>
+          <select id="reminderCohortSelect" class="reminder-select" aria-label="Your academic batch"></select>
+          <div class="reminder-offset-options">
+            <label><input type="checkbox" id="reminderOneDay" checked /> 1 day before</label>
+            <label><input type="checkbox" id="reminderOneHour" checked /> 1 hour before</label>
+          </div>
+          <div class="reminder-actions">
+            <button class="btn btn-primary btn-sm" id="enablePushBtn" type="button">Enable reminders</button>
+            <button class="btn btn-outline btn-sm" id="disablePushBtn" type="button" hidden>Turn off</button>
+            <button class="btn btn-outline btn-sm" id="testPushBtn" type="button" hidden>Send a test alert</button>
+          </div>
+          <p id="reminderStatus" class="reminder-status" role="status" aria-live="polite">Checking this device…</p>
+          <p class="settings-desc reminder-note">Events without a set time are reminded at 9:00 AM IST the day before.</p>
+        </section>
+        <section class="upcoming-reminders-section" aria-labelledby="upcomingRemindersTitle">
+          <div class="upcoming-reminders-heading"><div><p class="reminders-card-kicker">COMING UP</p><h4 id="upcomingRemindersTitle">Upcoming reminders</h4></div><span class="upcoming-reminders-count" id="upcomingRemindersCount">0</span></div>
+          <div class="upcoming-reminders-list" id="upcomingRemindersList"><p class="settings-desc">Sign in to see events for your batch.</p></div>
+        </section>
+      </div>
+      <div class="modal-footer reminders-page-footer">
+        <button class="btn btn-outline" id="closeRemindersDoneBtn" type="button">Close</button>
+      </div>
+    </section>
   </div>
 
   <script type="module" src="calendar-entry.js"></script>

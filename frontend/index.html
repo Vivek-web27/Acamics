@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/acamics-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/acamics-192.png" />
   <meta name="theme-color" content="#09090c" />
   <meta name="description" content="Sign in to Acamics to keep your personal academic events in sync." />
   <title>Sign in — Acamics</title>
@@ -74,6 +78,7 @@
     <footer class="auth-footer">Made with <span aria-label="love">❤️</span> by Vivek</footer>
   </div>
 
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);</script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>

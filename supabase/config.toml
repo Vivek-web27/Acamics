@@ -2,3 +2,8 @@ project_id = "axceorzwzfuyuaeoswgv"
 
 [functions.staff-event-action]
 verify_jwt = true
+
+# The scheduled request uses its own server-only secret. The GET route only
+# returns the public VAPID application key; the POST route validates the secret.
+[functions.send-reminders]
+verify_jwt = false

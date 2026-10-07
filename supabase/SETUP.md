@@ -20,6 +20,8 @@ For calendar-year grouping and cohort targeting, run this migration after the ca
 
 `migrations/20261003000100_calendar_year_and_cohort_scope.sql`
 
+For installable-app push reminders, run `migrations/20261008000100_web_push_reminders.sql` after the calendar migration.
+
 These migrations create a private Storage bucket for proof files, restrict uploads to admins and teachers, let signed-in users review event proof, and add the history columns and staff-only RPCs. Cancellation changes the event status to `cancelled` instead of deleting the row, and stores its reason, actor, and timestamp. Keep the bucket private; the frontend uses temporary signed links to display attachments. The existing `profiles.role` check should already allow `student`, `teacher`, and `admin`; new accounts should continue to default to `student`. Assign teacher roles only after verification, using the Supabase Dashboard/SQL Editor.
 
 ## 2. Set the shared teacher action password
@@ -67,3 +69,34 @@ Official events added through the staff form can target one undergraduate cohort
 ```powershell
 npx supabase@latest functions deploy staff-event-action --project-ref axceorzwzfuyuaeoswgv --use-api
 ```
+
+## 6. Installable app and background reminders
+
+The frontend is a Progressive Web App. On desktop/Android, use the browser's **Install Acamics** option. On iPhone/iPad, use **Share → Add to Home Screen**; iOS only delivers web push to a Home Screen web app. Users enable notifications in Acamics → Settings and select their undergraduate batch. The current release sends reminders for official events targeted to that batch and the user's personal events. Timed events use the selected 24-hour and/or 1-hour offsets. Events with no start time use 9:00 AM IST on the event date as their assumed start, so the 24-hour reminder arrives at 9:00 AM the day before; the 1-hour reminder is skipped.
+
+The `notification_outbox` is server-only. Reminder subscriptions and preferences have owner-only RLS. The browser receives only the public VAPID key; never expose the VAPID private key, the scheduler secret, or the Supabase service-role key.
+
+1. Apply the new `20261008000100_web_push_reminders.sql` migration in the Supabase SQL Editor.
+2. Generate a VAPID key pair locally in PowerShell. This prints JSON containing a public and private JWK; keep it private and do not paste it into chat or commit it:
+
+   ```powershell
+   node -e "const {generateKeyPairSync}=require('node:crypto');const p=generateKeyPairSync('ec',{namedCurve:'prime256v1'});console.log(JSON.stringify({publicKey:p.publicKey.export({format:'jwk'}),privateKey:p.privateKey.export({format:'jwk'})}))"
+   ```
+
+3. Generate a separate scheduler secret:
+
+   ```powershell
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+   ```
+
+4. In Supabase Dashboard → Edge Functions → Secrets, add `VAPID_KEYS_JSON` (the entire JSON from step 2), `VAPID_SUBJECT` (a `mailto:` address you control), and `REMINDER_CRON_SECRET` (the value from step 3). Do not use the teacher action password for the scheduler secret.
+5. From the repository root, deploy the reminder function:
+
+   ```powershell
+   npx supabase@latest functions deploy send-reminders --project-ref axceorzwzfuyuaeoswgv --use-api
+   ```
+
+6. Open `supabase/reminders_schedule.sql`, replace `REPLACE_WITH_REMINDER_CRON_SECRET` with the same scheduler secret, and run the SQL in Supabase SQL Editor. This enables the five-minute `pg_cron` job. Keep the edited secret out of Git; run the SQL in the dashboard without saving it to the repository.
+7. After the frontend is published over HTTPS, open it, sign in, choose Settings → **Enable reminders**, and allow notifications. The **Send a test alert** button checks device notification display immediately. Real event reminders are sent by the scheduled Edge Function, including when the app is closed.
+
+For local UI testing, serve the `frontend` directory (not the repository root) with `python -m http.server 8000`. `localhost` is treated as a secure context for service workers and push. The browser must remain installed/enabled on that same origin for its saved push subscription to work. Push subscriptions created on localhost are separate from subscriptions on the Netlify site. No Netlify deployment is needed until you decide the UI is ready. Push reminders do not change Supabase's separate signup confirmation email limit.

@@ -159,6 +159,251 @@ let selectedAcademicPart = null;
 
 let searchQuery = "";
 let selectedEvent = null;
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  const installButton = document.getElementById("installAppBtn");
+  if (installButton) installButton.hidden = false;
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  const installButton = document.getElementById("installAppBtn");
+  if (installButton) installButton.hidden = true;
+});
+
+function setupInstallButton() {
+  const button = document.getElementById("installAppBtn");
+  if (!button) return;
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  if (isStandalone) {
+    button.hidden = true;
+    return;
+  }
+  button.hidden = false;
+  button.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) {
+      alert(/iPhone|iPad|iPod/i.test(navigator.userAgent)
+        ? "To install Acamics on iPhone: tap Share, then choose Add to Home Screen."
+        : "Open your browser menu and choose Install Acamics or Add to Home Screen.");
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+  });
+}
+
+function setReminderStatus(message, isError = false) {
+  const status = document.getElementById("reminderStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.style.color = isError ? "#ff9b9b" : "";
+}
+
+function decodeApplicationServerKey(value) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+}
+
+async function setupReminderControls() {
+  const cohortSelect = document.getElementById("reminderCohortSelect");
+  const enableButton = document.getElementById("enablePushBtn");
+  const disableButton = document.getElementById("disablePushBtn");
+  const testButton = document.getElementById("testPushBtn");
+  if (!cohortSelect || !enableButton) return;
+
+  cohortSelect.innerHTML = [2026, 2025, 2024, 2023].map(year =>
+    `<option value="${year}">${year}–${year + 4} batch</option>`
+  ).join("");
+  cohortSelect.value = String(selectedCohortStartYear || 2025);
+  cohortSelect.addEventListener("change", () => renderUpcomingReminderPreview(Number(cohortSelect.value)));
+  document.getElementById("reminderOneDay").addEventListener("change", () => renderUpcomingReminderPreview(Number(cohortSelect.value)));
+  document.getElementById("reminderOneHour").addEventListener("change", () => renderUpcomingReminderPreview(Number(cohortSelect.value)));
+
+  if (!currentUser) {
+    enableButton.disabled = true;
+    setReminderStatus("Sign in to save reminders to your account.");
+    return;
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    enableButton.disabled = true;
+    setReminderStatus("Push reminders are not supported by this browser.", true);
+    return;
+  }
+
+  try {
+    const { data: preference, error } = await supabase.from("reminder_preferences")
+      .select("enabled,cohort_start_year,offsets_minutes")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (preference) {
+      cohortSelect.value = String(preference.cohort_start_year);
+      document.getElementById("reminderOneDay").checked = preference.offsets_minutes.includes(1440);
+      document.getElementById("reminderOneHour").checked = preference.offsets_minutes.includes(60);
+    }
+    const subscription = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+    const enabled = Boolean(preference?.enabled && subscription);
+    enableButton.textContent = enabled ? "Update reminders" : "Enable reminders";
+    disableButton.hidden = !enabled;
+    testButton.hidden = !enabled;
+    document.getElementById("reminderEnabledDot").hidden = !enabled;
+    setReminderStatus(enabled ? "Reminders are enabled on this device." : "Choose a batch and enable reminders.");
+    renderUpcomingReminderPreview(Number(cohortSelect.value));
+  } catch (error) {
+    console.error("Could not load reminder preferences:", error);
+    setReminderStatus("Apply the reminder database migration, then reload this page.", true);
+  }
+
+  enableButton.addEventListener("click", async () => {
+    enableButton.disabled = true;
+    setReminderStatus("Setting up this device…");
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Allow notifications in your browser to enable reminders.");
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        const { data, error } = await supabase.functions.invoke("send-reminders", { method: "GET" });
+        if (error) throw error;
+        if (!data?.publicKey) throw new Error("The push server has not published its public key yet.");
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeApplicationServerKey(data.publicKey),
+        });
+      }
+
+      const subscriptionJson = subscription.toJSON();
+      const keys = subscriptionJson.keys || {};
+      if (!keys.p256dh || !keys.auth) throw new Error("The browser did not provide a complete push subscription.");
+      const offsets = [];
+      if (document.getElementById("reminderOneDay").checked) offsets.push(1440);
+      if (document.getElementById("reminderOneHour").checked) offsets.push(60);
+      if (!offsets.length) throw new Error("Select at least one reminder time.");
+
+      const { error: subscriptionError } = await supabase.from("push_subscriptions").upsert({
+        endpoint: subscription.endpoint,
+        user_id: currentUser.id,
+        p256dh: keys.p256dh,
+        auth_secret: keys.auth,
+        expiration_time: subscription.expirationTime ? new Date(subscription.expirationTime).toISOString() : null,
+      });
+      if (subscriptionError) throw subscriptionError;
+      const { error: preferenceError } = await supabase.from("reminder_preferences").upsert({
+        user_id: currentUser.id,
+        enabled: true,
+        cohort_start_year: Number(cohortSelect.value),
+        offsets_minutes: offsets,
+        timezone: "Asia/Kolkata",
+      });
+      if (preferenceError) throw preferenceError;
+      enableButton.textContent = "Update reminders";
+      disableButton.hidden = false;
+      testButton.hidden = false;
+      document.getElementById("reminderEnabledDot").hidden = false;
+      renderUpcomingReminderPreview(Number(cohortSelect.value));
+      setReminderStatus("Reminders are enabled on this device.");
+    } catch (error) {
+      console.error("Could not enable reminders:", error);
+      let isBrave = false;
+      try {
+        isBrave = Boolean(navigator.brave && await navigator.brave.isBrave());
+      } catch { /* Browser detection is optional; keep the original error below. */ }
+      const message = error.message === "Failed to send a request to the Edge Function"
+        ? "Could not reach Supabase. Redeploy send-reminders after the CORS fix, then try again."
+        : isBrave && error.name === "AbortError"
+          ? "Brave blocked its push service. In brave://settings/privacy, turn on ‘Use Google services for push messaging’, relaunch Brave, then try again."
+          : error.message || "Could not enable reminders.";
+      setReminderStatus(message, true);
+    } finally {
+      enableButton.disabled = false;
+    }
+  });
+
+  disableButton.addEventListener("click", async () => {
+    disableButton.disabled = true;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint).eq("user_id", currentUser.id);
+        await subscription.unsubscribe();
+      }
+      const { error } = await supabase.from("reminder_preferences").upsert({
+        user_id: currentUser.id,
+        enabled: false,
+        cohort_start_year: Number(cohortSelect.value),
+        offsets_minutes: [1440, 60],
+        timezone: "Asia/Kolkata",
+      });
+      if (error) throw error;
+      enableButton.textContent = "Enable reminders";
+      disableButton.hidden = true;
+      testButton.hidden = true;
+      document.getElementById("reminderEnabledDot").hidden = true;
+      setReminderStatus("Reminders are turned off on this device.");
+    } catch (error) {
+      setReminderStatus(error.message || "Could not turn reminders off.", true);
+    } finally {
+      disableButton.disabled = false;
+    }
+  });
+
+  testButton.addEventListener("click", async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification("Acamics reminders are ready", {
+        body: "This is a test alert from your Acamics app.",
+        icon: "./icons/acamics-192.png",
+        badge: "./icons/acamics-192.png",
+        tag: "acamics-test-alert",
+        data: { url: "./calendar.html" },
+      });
+      setReminderStatus("Test alert sent. Real event reminders need the Supabase scheduler enabled.");
+    } catch (error) {
+      setReminderStatus(error.message || "Could not show a test alert.", true);
+    }
+  });
+}
+
+function renderUpcomingReminderPreview(cohortStartYear) {
+  const list = document.getElementById("upcomingRemindersList");
+  const count = document.getElementById("upcomingRemindersCount");
+  if (!list || !count) return;
+  if (!currentUser) {
+    list.innerHTML = '<p class="settings-desc">Sign in to see events for your batch.</p>';
+    count.textContent = "0";
+    return;
+  }
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const offsets = [];
+  if (document.getElementById("reminderOneDay")?.checked) offsets.push("1 day before");
+  if (document.getElementById("reminderOneHour")?.checked) offsets.push("1 hour before");
+  const candidates = allEvents.filter(event => {
+    if (!event.start_date || event.start_date < today || ["cancelled", "completed"].includes(String(event.lifecycle_status || "").toLowerCase())) return false;
+    if (!event.isOfficial) return event.ownerId === currentUser.id;
+    const targets = Array.isArray(event.target_cohort_start_years) ? event.target_cohort_start_years.map(Number) : [];
+    return targets.length === 0 || targets.includes(cohortStartYear);
+  }).sort((a, b) => a.start_date.localeCompare(b.start_date) || String(a.start_time || "").localeCompare(String(b.start_time || "")));
+
+  count.textContent = String(candidates.length);
+  if (!candidates.length) {
+    list.innerHTML = '<p class="settings-desc">No upcoming events match this batch yet.</p>';
+    return;
+  }
+  list.innerHTML = candidates.slice(0, 8).map(event => {
+    const eventOffsets = event.start_time ? offsets : offsets.includes("1 day before") ? ["1 day before"] : [];
+    const tags = eventOffsets.length
+      ? eventOffsets.map(label => `<span class="reminder-time-chip">${label}</span>`).join("")
+      : '<span class="reminder-time-chip reminder-time-chip-muted">No reminder time selected</span>';
+    return `<article class="upcoming-reminder-item"><div class="upcoming-reminder-copy"><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(formatReadableDate(event.start_date))}${event.start_time ? ` · ${escapeHtml(event.start_time.slice(0, 5))}` : " · Time not set"}</span></div><div class="upcoming-reminder-times">${tags}</div></article>`;
+  }).join("");
+}
 
 // ==========================================
 // 1. SIMPLE DYNAMIC STATUS CALCULATOR
@@ -1601,6 +1846,8 @@ async function setupApp() {
     await loadCurrentUser();
 
     await initApp();
+    setupInstallButton();
+    await setupReminderControls();
 
     document.getElementById("formStartDate")?.addEventListener("change", event => {
       populateOfficialCohortOptions(event.target.value.slice(0, 4));
@@ -2072,6 +2319,22 @@ async function setupApp() {
           .classList.remove(
             "active"
           );
+
+    const remindersBackdrop = document.getElementById("remindersModalBackdrop");
+    const closeRemindersPanel = () => remindersBackdrop.classList.remove("active");
+    document.getElementById("reminderToggleBtn")?.addEventListener("click", () => {
+      renderUpcomingReminderPreview(Number(document.getElementById("reminderCohortSelect").value || 2025));
+      remindersBackdrop.classList.add("active");
+      document.getElementById("closeRemindersBtn")?.focus();
+    });
+    document.getElementById("closeRemindersBtn")?.addEventListener("click", closeRemindersPanel);
+    document.getElementById("closeRemindersDoneBtn")?.addEventListener("click", closeRemindersPanel);
+    remindersBackdrop?.addEventListener("click", event => {
+      if (event.target === remindersBackdrop) closeRemindersPanel();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && remindersBackdrop.classList.contains("active")) closeRemindersPanel();
+    });
 
     document
       .getElementById("clearMyEventsBtn")
